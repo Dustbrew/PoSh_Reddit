@@ -431,6 +431,13 @@ FUNCTION Resolve-Captcha
 
 #endregion
 
+#region Find-Errors
+FUNCTION Find-Errors
+    {
+
+    }
+#endregion
+
 #region Help-Template
 
 <# 
