@@ -184,6 +184,7 @@ FUNCTION Submit-Post
     "url" = $PostLink
     }
 
+#add a default footer to posts made by the bot
     $PostBody = @"
 $PostBody
 ---
@@ -196,7 +197,7 @@ This is an automated post submitted by PoShBot a reddit bot written in PowerShel
         {
         TRY
             {
-            $Global:Submit = Invoke-WebRequest -uri "$Global:BaseUrl/api/submit" -Method Post -Body $Params -WebSession $GLOBAL:Session -UserAgent $Global:UserAgent | ConvertFrom-Json
+            $Submit = Invoke-WebRequest -uri "$Global:BaseUrl/api/submit" -Method Post -Body $Params -WebSession $GLOBAL:Session -UserAgent $Global:UserAgent | ConvertFrom-Json
             }
         CATCH
             {
@@ -206,6 +207,7 @@ This is an automated post submitted by PoShBot a reddit bot written in PowerShel
         IF ($Submit.json.Data)
             {
             Write-Verbose "Post successfully submitted to reddit"
+            Write-Output $Submit
             }
         # If post failed because of captcha, check if fail on captcha is set to false
         ELSEIF ($Submit.json.errors -like "*BAD_CAPTCHA*")
@@ -218,7 +220,8 @@ This is an automated post submitted by PoShBot a reddit bot written in PowerShel
                 "captcha" = $Captcha.Answer
                 "iden" = $Captcha.Iden
                 }
-                $Global:SubmitWithCaptcha = Invoke-WebRequest -uri "$Global:BaseUrl/api/submit" -Method Post -Body $Params -WebSession $GLOBAL:Session -UserAgent $Global:UserAgent | ConvertFrom-Json
+                $SubmitWithCaptcha = Invoke-WebRequest -uri "$Global:BaseUrl/api/submit" -Method Post -Body $Params -WebSession $GLOBAL:Session -UserAgent $Global:UserAgent | ConvertFrom-Json
+                Write-Output $SubmitWithCaptcha
                 }
             }
         }
