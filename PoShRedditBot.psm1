@@ -431,8 +431,8 @@ FUNCTION Resolve-Captcha
 
 #endregion
 
-#region Find-Errors
-FUNCTION Find-Errors
+#region Debug-Errors
+FUNCTION Debug-Errors
     {
     [CmdletBinding()]
     PARAM
