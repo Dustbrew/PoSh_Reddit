@@ -1,6 +1,7 @@
 ﻿$Global:BaseUrl = "http://www.reddit.com"
 $Global:UserAgent = "User-Agent PoShBot/1.0 Beta by Davotronic5000"
 $Global:ApiType = "json"
+$Global:PoShBotLogs = $env:USERPROFILE
 
 #region Connect-Reddit
 
@@ -195,46 +196,40 @@ My Source code is avaialable here: [PoShBot Git](https://github.com/davotronic50
 
     IF ($psCmdlet.ShouldProcess("## object ##", "## message ##"))
         {
-        TRY
+        #Keep trying to submit post until either there is no error or an unfixable error is found 
+        DO
             {
-            $Global:Submit = Invoke-WebRequest -uri "$Global:BaseUrl/api/submit" -Method Post -Body $Params -WebSession $GLOBAL:Session -UserAgent $Global:UserAgent | ConvertFrom-Json
-            }
-        CATCH
-            {
-            Write-Error -RecommendedAction Stop -Message "Failed to submit the post to Reddit" -Exception $_.Exception.Message
-            }
-
-
-        # If post failed because of captcha, check if fail on captcha is set to false
-        IF ($Submit.json.errors -like "*BAD_CAPTCHA*")
-            {
-            IF (!$FailOnCaptcha)
+            #reset error variable for each run through
+            $Problem = $null 
+            TRY
                 {
-                #If fail on captcha is false request manual intervention to complete
-                $Captcha = Resolve-Captcha -CaptchaIden $Submit.json.captcha
-                $Params += @{
-                "captcha" = $Captcha.Answer
-                "iden" = $Captcha.Iden
-                }
                 $Submit = Invoke-WebRequest -uri "$Global:BaseUrl/api/submit" -Method Post -Body $Params -WebSession $GLOBAL:Session -UserAgent $Global:UserAgent | ConvertFrom-Json
-                Write-Output $Submit
+                }
+            CATCH
+                {
+                Write-Error -RecommendedAction Stop -Message "Failed to submit the post to Reddit" -Exception $_.Exception.Message
+                }
+            IF ($Submit.json.errors)
+                {
+                $Problem = Debug-Errors -input $submit
+                }
+            #if errror is bad captcha then get captcah answer
+            IF ($Problem.Action -eq "TRY_WITH_CAPTCHA")
+                {
+                #Get Captcha answer
+                $Captcha = Resolve-Captcha -CaptchaIden $Submit.json.captcha
+                Write-Verbose "Adding captcha details in to API parameters"
+                $Params += @{
+                    "captcha" = $Captcha.Answer
+                    "iden" = $Captcha.Iden
+                    }
+                }
+            ELSEIF ()
+                {
+
                 }
             }
-
-        
-        IF ($Submit.json.Data)
-            {
-            Write-Verbose "Post successfully submitted to reddit"
-            Write-Output $Submit
-            }
-        ELSEIF ($Submit.json.errors -like "*QUOTA_FILLED*")
-            {
-            Write-Error -RecommendedAction Stop -Message "$($Submit.json.errors)"
-            }
-        ELSEIF ($Submit.json.errors -like "*RATELIMIT*")
-            {
-            Write-Error -RecommendedAction Stop -Message "$($Submit.json.errors)"
-            }
+        Until (-not $Problem -or $Problem.Action -eq "STOP")
         }
     }
 
@@ -439,11 +434,29 @@ FUNCTION Debug-Errors
         (
         $input
         )
+
+
     SWITCH -Regex ($input.json.errors)
         {
-        "USER_REQUIRED" {}
+        "USER_REQUIRED"
+            {
+            $output = [Ordered] @{
+                "Action" = "Stop"
+                "Message" = "No session information is avaialable, please run Connect-Reddit command to get seesion information"
+                }
+            New-Object -TypeName PSObject -Property $Output
+            }
 
-        "HTTPS_REQUIRED" {}
+        "HTTPS_REQUIRED" 
+            {
+            $output = [Ordered] @{
+                "Action" = "CONTINUE_WITH_HTTPS"
+                "Message" = "This task is only avaialble over HTTPS"
+                }
+            New-Object -TypeName PSObject -Property $Output
+            }            
+            
+            
 
         "VERIFIED_USER_REQUIRED" {}
 
@@ -451,7 +464,14 @@ FUNCTION Debug-Errors
 
         "BAD_URL" {}
 
-        "BAD_CAPTCHA" {}
+        "BAD_CAPTCHA" 
+            {
+            $output = [Ordered]@{
+                "Action" = "TRY_WITH_CAPTCHA"
+                "Message" = "Captcha was not answered correctly, re-submit with captcha answer"
+                }
+            New-Object -TypeName PSObject -Property $Output
+            }
 
         "BAD_USERNAME" {}
 
