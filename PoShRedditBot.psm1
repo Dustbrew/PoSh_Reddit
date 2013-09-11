@@ -1,7 +1,6 @@
 ﻿$Global:BaseUrl = "http://www.reddit.com"
 $Global:UserAgent = "User-Agent PoShBot/1.0 Beta by Davotronic5000"
 $Global:ApiType = "json"
-$Global:PoShBotLogs = $env:USERPROFILE
 
 #region Connect-Reddit
 
@@ -114,9 +113,6 @@ The title of the submitted post
 .PARAMETER PostLink
 If the post is a link post, this specifys the link.
 
-.PARAMETER NumRetry
-Number of times a submit attempt will be made on fixable errors
-
 .PARAMETER FailOnCaptcha
 Function will not pause for user input on captcha, the post will just fail to submit
 
@@ -173,8 +169,7 @@ FUNCTION Submit-Post
         [STRING]$PostLink,
 
         [PSDefaultValue(Help = 'False')]
-        [BOOL]$FailOnCaptcha = $False,
-
+        [BOOL]$FailOnCaptcha = $False
         )
 
 #add a default footer to posts made by the bot
@@ -200,40 +195,46 @@ My Source code is avaialable here: [PoShBot Git](https://github.com/davotronic50
 
     IF ($psCmdlet.ShouldProcess("## object ##", "## message ##"))
         {
-        #Keep trying to submit post until either there is no error or an unfixable error is found 
-        DO
+        TRY
             {
-            #reset error variable for each run through
-            $Problem = $null 
-            TRY
-                {
-                $Submit = Invoke-WebRequest -uri "$Global:BaseUrl/api/submit" -Method Post -Body $Params -WebSession $GLOBAL:Session -UserAgent $Global:UserAgent | ConvertFrom-Json
-                }
-            CATCH
-                {
-                Write-Error -RecommendedAction Stop -Message "Failed to submit the post to Reddit" -Exception $_.Exception.Message
-                }
-            IF ($Submit.json.errors)
-                {
-                $Problem = Debug-Errors -input $submit
-                }
-            #if errror is bad captcha then get captcah answer
-            IF ($Problem.Action -eq "TRY_WITH_CAPTCHA")
-                {
+            $Global:Submit = Invoke-WebRequest -uri "$Global:BaseUrl/api/submit" -Method Post -Body $Params -WebSession $GLOBAL:Session -UserAgent $Global:UserAgent | ConvertFrom-Json
+            }
+        CATCH
+            {
+            Write-Error -RecommendedAction Stop -Message "Failed to submit the post to Reddit" -Exception $_.Exception.Message
+            }
 
-                IF ($FailOnCaptcha -eq $False)
-                    {
-                    #Get Captcha answer
-                    $Captcha = Resolve-Captcha -CaptchaIden $Submit.json.captcha
-                    Write-Verbose "Adding captcha details in to API parameters"
-                    $Params += @{
-                        "captcha" = $Captcha.Answer
-                        "iden" = $Captcha.Iden
-                        }
-                    }
+
+        # If post failed because of captcha, check if fail on captcha is set to false
+        IF ($Submit.json.errors -like "*BAD_CAPTCHA*")
+            {
+            IF (!$FailOnCaptcha)
+                {
+                #If fail on captcha is false request manual intervention to complete
+                $Captcha = Resolve-Captcha -CaptchaIden $Submit.json.captcha
+                $Params += @{
+                "captcha" = $Captcha.Answer
+                "iden" = $Captcha.Iden
+                }
+                $Submit = Invoke-WebRequest -uri "$Global:BaseUrl/api/submit" -Method Post -Body $Params -WebSession $GLOBAL:Session -UserAgent $Global:UserAgent | ConvertFrom-Json
+                Write-Output $Submit
                 }
             }
-        Until (-not $Problem -or $Problem.Action -eq "STOP")
+
+        
+        IF ($Submit.json.Data)
+            {
+            Write-Verbose "Post successfully submitted to reddit"
+            Write-Output $Submit
+            }
+        ELSEIF ($Submit.json.errors -like "*QUOTA_FILLED*")
+            {
+            Write-Error -RecommendedAction Stop -Message "$($Submit.json.errors)"
+            }
+        ELSEIF ($Submit.json.errors -like "*RATELIMIT*")
+            {
+            Write-Error -RecommendedAction Stop -Message "$($Submit.json.errors)"
+            }
         }
     }
 
@@ -428,249 +429,6 @@ FUNCTION Resolve-Captcha
 
     }
 
-#endregion
-
-#region Debug-Errors
-FUNCTION Debug-Errors
-    {
-    [CmdletBinding()]
-    PARAM
-        (
-        $input
-        )
-
-
-    SWITCH -Regex ($input.json.errors)
-        {
-        "USER_REQUIRED"
-            {
-            [PSObject] @{
-                "Action" = "Stop"
-                "Message" = "No session information is avaialable, please run Connect-Reddit command to get seesion information"
-                }
-            }
-
-        "HTTPS_REQUIRED" 
-            {
-            [PSObject] @{
-                "Action" = "CONTINUE_WITH_HTTPS"
-                "Message" = "This task is only avaialble over HTTPS"
-                }
-            }            
-            
-            
-
-        "VERIFIED_USER_REQUIRED" 
-            {
-            
-            }
-
-        "NO_URL" 
-            {
-            
-            }
-
-        "BAD_URL" {}
-
-        "BAD_CAPTCHA" 
-            {
-            [PSObject]@{
-                "Action" = "TRY_WITH_CAPTCHA"
-                "Message" = "Captcha was not answered correctly, re-submit with captcha answer"
-                }
-            }
-
-        "BAD_USERNAME" {}
-
-        "USERNAME_TAKEN" {}
-
-        "USERNAME_TAKEN_DEL" {}
-
-        "USER_BLOCKED" {}
-
-        "NO_THING_ID" {}
-
-        "TOO_MANY_THINGS_ID" {}
-
-        "NOT_AUTHOR" {}
-
-        "NOT_USER" {}
-
-        "LOGGED_IN" {}
-
-        "DELETED_LINK" {}
-
-        "DELETED_COMMENT" {}
-
-        "DELETED_THING" {}
-
-        "BAD_PAASWORD" {}
-
-        "WRONG_PASSWORD" {}
-
-        "BAD_PASSWORD_MATCH" {}
-
-        "NO_NAME" {}
-
-        "NO_EMAIL" {}
-
-        "NO_EMAIL_FOR_USER" {}
-
-        "NO_TO_ADDRESS" {}
-
-        "NO_SUBJECT" {}
-
-        "USER_DOESENT_EXIST" {}
-
-        "NO_USER" {}
-
-        "INVALID_PREF" {}
-
-        "BAD_NUMBER" {}
-
-        "BAD_STRING" {}
-
-        "BAD_BID" {}
-
-        "ALREADY_SUB" {}
-
-        "SUBREDDIT_EXISTS" {}
-
-        "SUBREDDIT_NOTALLOWED" {}
-
-        "SUBREDDIT_REQUIRED" {}
-
-        "BAD_SR_NAME" {}
-
-        "RATELIMIT" {}
-
-        "QUOTA_FILLED" 
-            {
-            [PSObject] @{
-                "Action" = "ADD_TO_QUEUE"
-                "Message" = "You have tried that too many times, re-try in 1 hour"
-                }
-            }
-
-        "SUBREDDIT_RATELIMIT" {}
-
-        "EXPIRED" {}
-
-        "DRACONIAN" {}
-
-        "BANNED_IP" {}
-
-        "BAD_CNAME" {}
-
-        "USED_CNAME" {}
-
-        "INVALID_OPTION" {}
-
-        "CHEATER" {}
-
-        "BAD_EMAILS" {}
-
-        "NO_EMAILS" {}
-
-        "TOO_MANY_EMAILS" {}
-
-        "OVERSOLD" {}
-
-        "BAD_DATE" {}
-
-        "BAD_DATE_RANGE" {}
-
-        "DATE_RANGE_TOO_LARGE" {}
-
-        "BAD_FUTURE_DATE" {}
-
-        "BAD_PAST_DATE" {}
-
-        "BAD_ADDRESS" {}
-
-        "BAD_CARD" {}
-
-        "TOO_LONG" {}
-
-        "NO_TEXT" {}
-
-        "INVALID_CODE" {}
-
-        "CLAIMED_CODE" {}
-
-        "NO_SELFS" {}
-
-        "NO_LINKS" {}
-
-        "TOO_OLD" {}
-
-        "BAD_CSS_NAME" {}
-
-        "BAD_CSS" {}
-
-        "BAD_REVISION" {}
-
-        "TOO_MUCH_FLAIR_CSS" {}
-
-        "BAD_FLAIR_TARGET" {}
-
-        "CONFIRM" {}
-       
-        "CONFLICT" {}
-
-        "NO_API" {}
-
-        "DOMAIN_BANNED" {}
-
-        "NO_OTP_SECRET" {}
-
-        "NOT_SUPPORTED" {}
-
-        "BAD_IMAGE" {}
-
-        "DEVELOPER_ALREADY_ADDED" {}
-
-        "TOO_MANY_DEVELOPERS" {}
-
-        "BAD_HASH" {}
-
-        "ALREADY_MODERATOR" {}
-
-        "NO_INVITE_FOUND" {}
-
-        "BID_LIVE" {}
-
-        "TOO_MANY_CAMPAIGNS" {}
-
-        "BAD_JASONP_CALLBACK" {}
-
-        "INVALID_PERMISSION_TYPE" {}
-
-        "INVALID_PERMISSIONS" {}
-
-        "BAD_MULTI_PATH" {}
-
-        "BAD_MULTI_NAME" {}
-
-        "MULTI_NOT_FOUND" {}
-
-        "MULTI_EXISTS" {}
-
-        "MULTI_CANNOT_EDIT" {}
-
-        "MULTI_TOO_MANY_SUBREDDITS" {}
-
-        "MULTI_SPECIAL_SUBREDDIT" {}
-
-        "JSON_PARSE_ERROR" {}
-
-        "JSON_INVALID" {}
-
-        "JOSN_MISSING_KEY" {}
-
-        Default {}
-        }
-    }
 #endregion
 
 #region Help-Template
