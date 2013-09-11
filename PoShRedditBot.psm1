@@ -114,6 +114,9 @@ The title of the submitted post
 .PARAMETER PostLink
 If the post is a link post, this specifys the link.
 
+.PARAMETER NumRetry
+Number of times a submit attempt will be made on fixable errors
+
 .PARAMETER FailOnCaptcha
 Function will not pause for user input on captcha, the post will just fail to submit
 
@@ -170,7 +173,8 @@ FUNCTION Submit-Post
         [STRING]$PostLink,
 
         [PSDefaultValue(Help = 'False')]
-        [BOOL]$FailOnCaptcha = $False
+        [BOOL]$FailOnCaptcha = $False,
+
         )
 
 #add a default footer to posts made by the bot
@@ -216,17 +220,17 @@ My Source code is avaialable here: [PoShBot Git](https://github.com/davotronic50
             #if errror is bad captcha then get captcah answer
             IF ($Problem.Action -eq "TRY_WITH_CAPTCHA")
                 {
-                #Get Captcha answer
-                $Captcha = Resolve-Captcha -CaptchaIden $Submit.json.captcha
-                Write-Verbose "Adding captcha details in to API parameters"
-                $Params += @{
-                    "captcha" = $Captcha.Answer
-                    "iden" = $Captcha.Iden
-                    }
-                }
-            ELSEIF ()
-                {
 
+                IF ($FailOnCaptcha -eq $False)
+                    {
+                    #Get Captcha answer
+                    $Captcha = Resolve-Captcha -CaptchaIden $Submit.json.captcha
+                    Write-Verbose "Adding captcha details in to API parameters"
+                    $Params += @{
+                        "captcha" = $Captcha.Answer
+                        "iden" = $Captcha.Iden
+                        }
+                    }
                 }
             }
         Until (-not $Problem -or $Problem.Action -eq "STOP")
@@ -440,37 +444,40 @@ FUNCTION Debug-Errors
         {
         "USER_REQUIRED"
             {
-            $output = [Ordered] @{
+            [PSObject] @{
                 "Action" = "Stop"
                 "Message" = "No session information is avaialable, please run Connect-Reddit command to get seesion information"
                 }
-            New-Object -TypeName PSObject -Property $Output
             }
 
         "HTTPS_REQUIRED" 
             {
-            $output = [Ordered] @{
+            [PSObject] @{
                 "Action" = "CONTINUE_WITH_HTTPS"
                 "Message" = "This task is only avaialble over HTTPS"
                 }
-            New-Object -TypeName PSObject -Property $Output
             }            
             
             
 
-        "VERIFIED_USER_REQUIRED" {}
+        "VERIFIED_USER_REQUIRED" 
+            {
+            
+            }
 
-        "NO_URL" {}
+        "NO_URL" 
+            {
+            
+            }
 
         "BAD_URL" {}
 
         "BAD_CAPTCHA" 
             {
-            $output = [Ordered]@{
+            [PSObject]@{
                 "Action" = "TRY_WITH_CAPTCHA"
                 "Message" = "Captcha was not answered correctly, re-submit with captcha answer"
                 }
-            New-Object -TypeName PSObject -Property $Output
             }
 
         "BAD_USERNAME" {}
@@ -537,7 +544,13 @@ FUNCTION Debug-Errors
 
         "RATELIMIT" {}
 
-        "QUOTA_FILLED" {}
+        "QUOTA_FILLED" 
+            {
+            [PSObject] @{
+                "Action" = "ADD_TO_QUEUE"
+                "Message" = "You have tried that too many times, re-try in 1 hour"
+                }
+            }
 
         "SUBREDDIT_RATELIMIT" {}
 
