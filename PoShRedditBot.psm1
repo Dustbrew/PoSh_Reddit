@@ -175,6 +175,7 @@ FUNCTION Submit-Post
 #add a default footer to posts made by the bot
     $PostBody = @"
 $PostBody
+
 ---
 This is an automated post submitted by PoShBot a reddit bot written in PowerShell by /u/Davotronic5000.
 My Source code is avaialable here: [PoShBot Git](https://github.com/davotronic5000/PoSh_Reddit_Bot)
@@ -208,17 +209,21 @@ My Source code is avaialable here: [PoShBot Git](https://github.com/davotronic50
         # If post failed because of captcha, check if fail on captcha is set to false
         IF ($Submit.json.errors -like "*BAD_CAPTCHA*")
             {
-            IF (!$FailOnCaptcha)
+            DO
                 {
-                #If fail on captcha is false request manual intervention to complete
-                $Captcha = Resolve-Captcha -CaptchaIden $Submit.json.captcha
-                $Params += @{
-                "captcha" = $Captcha.Answer
-                "iden" = $Captcha.Iden
+                IF (!$FailOnCaptcha)
+                    {
+                    #If fail on captcha is false request manual intervention to complete
+                    $Captcha = Resolve-Captcha -CaptchaIden $Submit.json.captcha
+                    $Params += @{
+                    "captcha" = $Captcha.Answer
+                    "iden" = $Captcha.Iden
+                    }
+                    $Submit = Invoke-WebRequest -uri "$Global:BaseUrl/api/submit" -Method Post -Body $Params -WebSession $GLOBAL:Session -UserAgent $Global:UserAgent | ConvertFrom-Json
+                    Write-Output $Submit
+                    }
                 }
-                $Submit = Invoke-WebRequest -uri "$Global:BaseUrl/api/submit" -Method Post -Body $Params -WebSession $GLOBAL:Session -UserAgent $Global:UserAgent | ConvertFrom-Json
-                Write-Output $Submit
-                }
+            Until ($Submit.json.errors -notlike "*BAD_CAPTCHA*")
             }
 
         
