@@ -194,7 +194,7 @@ My Source code is avaialable here: [PoShBot Git](https://github.com/davotronic50
     "url" = $PostLink
     }
 
-    IF ($psCmdlet.ShouldProcess("## object ##", "## message ##"))
+    IF ($psCmdlet.ShouldProcess("$SubReddit SubRedit", "Posting $PostTitle"))
         {
         TRY
             {
