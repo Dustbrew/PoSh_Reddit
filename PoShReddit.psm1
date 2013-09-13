@@ -1,5 +1,5 @@
 ﻿$Global:BaseUrl = "http://www.reddit.com"
-$Global:UserAgent = "User-Agent PoShBot/1.0 Beta by Davotronic5000"
+$Global:UserAgent = "User-Agent PoShReddit/1.0 Beta by Davotronic5000"
 $Global:ApiType = "json"
 
 #region Connect-Reddit
@@ -198,7 +198,7 @@ My Source code is avaialable here: [PoShBot Git](https://github.com/davotronic50
         {
         TRY
             {
-            $Global:Submit = Invoke-WebRequest -uri "$Global:BaseUrl/api/submit" -Method Post -Body $Params -WebSession $GLOBAL:Session -UserAgent $Global:UserAgent | ConvertFrom-Json
+            $Submit = Invoke-WebRequest -uri "$Global:BaseUrl/api/submit" -Method Post -Body $Params -WebSession $GLOBAL:Session -UserAgent $Global:UserAgent | ConvertFrom-Json
             }
         CATCH
             {
@@ -434,6 +434,42 @@ FUNCTION Resolve-Captcha
 
     }
 
+#endregion
+
+#region Remove-User
+FUNCTION Remove-User
+    {
+    [CmdletBinding()]
+    PARAM
+        (
+        [parameter(Mandatory=$true)]
+        [Alias("Username","Cred")]
+      	[System.Management.Automation.PSCredential]
+      	[System.Management.Automation.Credential()]$Credential =  [System.Management.Automation.PSCredential]::Empty,
+
+        [STRING]$message
+        )
+
+    $params = @{
+    "api_type" = $Global:ApiType
+    "confirm" = $true
+    "delete_message" = $message
+    "passwd" = $Credential.GetNetworkCredential().Password
+    "uh" = $Global:Modhash
+    "user" = $Credential.UserName
+    }
+
+    TRY
+       {
+        $Submit = Invoke-WebRequest -uri "$Global:BaseUrl/api/delete_user" -Method Post -Body $Params -WebSession $GLOBAL:Session -UserAgent $Global:UserAgent | ConvertFrom-Json
+        }
+    CATCH
+        {
+        Write-Error -RecommendedAction Stop -Message "Failed to delete the user account" -Exception $_.Exception.Message
+        }
+
+        Write-Output $Submit
+    }
 #endregion
 
 #region Help-Template
