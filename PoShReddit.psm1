@@ -220,7 +220,9 @@ My Source code is avaialable here: [PoShBot Git](https://github.com/davotronic50
                     "iden" = $Captcha.Iden
                     }
                     $Submit = Invoke-WebRequest -uri "$Global:BaseUrl/api/submit" -Method Post -Body $Params -WebSession $GLOBAL:Session -UserAgent $Global:UserAgent | ConvertFrom-Json
-                    Write-Output $Submit
+                    Write-Output $Submit.json.captcha
+                    $Params.Remove("captcha")
+                    $params.Remove("iden")
                     }
                 }
             Until ($Submit.json.errors -notlike "*BAD_CAPTCHA*")
@@ -467,8 +469,6 @@ FUNCTION Remove-User
         {
         Write-Error -RecommendedAction Stop -Message "Failed to delete the user account" -Exception $_.Exception.Message
         }
-
-        Write-Output $Submit
     }
 #endregion
 
