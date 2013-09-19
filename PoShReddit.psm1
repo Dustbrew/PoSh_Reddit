@@ -439,6 +439,37 @@ FUNCTION Resolve-Captcha
 #endregion
 
 #region Remove-User
+
+<# 
+.SYNOPSIS
+Removes the Reddit User Account
+
+.DESCRIPTION
+Removes the reddit account of the currently connected user
+
+.PARAMETER  Credential
+Credentials for the user being logged on, accespt ps credential object
+
+.PARAMETER Message
+message to explain why the account is being deleted.
+
+.EXAMPLE
+Remove-User -cred PoShBot -message "I can't take it anymore"
+
+.INPUTS
+
+
+.OUTPUTS
+
+
+.NOTES
+Created By: Dave Garnar/Davotronic5000
+
+.LINK
+http://davotronic5000.co.uk/blog
+http://reddit.com/r/PowerShell
+#>
+
 FUNCTION Remove-User
     {
     [CmdletBinding()]
@@ -469,6 +500,18 @@ FUNCTION Remove-User
         {
         Write-Error -RecommendedAction Stop -Message "Failed to delete the user account" -Exception $_.Exception.Message
         }
+    }
+#endregion
+
+#region Select-Flair
+FUNCTION Select-Flair
+    {
+    [CmdletBinding()]
+
+    PARAM
+        (
+
+        )
     }
 #endregion
 
