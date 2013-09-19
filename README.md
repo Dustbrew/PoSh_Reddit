@@ -1,4 +1,4 @@
-PoSh_Reddit_Bot
+PoSh_Reddit
 ===============
 
-A Reddit bot writtin in PowerShell
+A Reddit Module for PowerShell
